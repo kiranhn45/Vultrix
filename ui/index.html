@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Valtrix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    --void: #000000;
+    --ink: #d6d6d6;
+    --text: #aab2c0;
+    --mute: #7d8696;
+    --dim: #4b5262;
+    --line: rgba(255, 255, 255, 0.09);
+    --panel: rgba(255, 255, 255, 0.025);
+    --beam-core: #cfeaff;
+    --beam: #2aa3ff;
+    --beam-edge: #5b3df5;
+    --high: #ff6b7a;
+    --med: #ffb454;
+    --low: #5eead4;
+
+    --display: "Sora", "Segoe UI", system-ui, sans-serif;
+    --body: "Manrope", "Segoe UI", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); scroll-behavior: smooth; background: var(--void); }
+  body {
+    margin: 0;
+    background: var(--void);
+    color: var(--text);
+    font: 400 1rem/1.6 var(--body);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--beam); outline-offset: 3px; border-radius: 6px; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .top {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 22px clamp(18px, 4vw, 40px);
+    font-size: 0.875rem;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .chip i {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--low);
+    box-shadow: 0 0 10px var(--low);
+  }
+  .links { display: flex; gap: 22px; }
+  .links a { text-decoration: none; color: var(--mute); transition: color .2s; }
+  .links a:hover { color: var(--ink); }
+
+  .stage {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px 7vh;
+    text-align: center;
+  }
+  .wordmark {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: clamp(3.6rem, 15vw, 10.5rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    padding-bottom: 0.06em;
+    color: var(--ink);
+    background: linear-gradient(180deg, #e8e8e8 0%, #d2d2d2 55%, #8fa3bd 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: riseIn 1.2s cubic-bezier(.2, .7, .1, 1) .45s both;
+  }
+
+  .beam-wrap { position: relative; width: min(46rem, 92vw); height: 2px; }
+  .beam { position: absolute; inset: 0; animation: beamIn 1.3s cubic-bezier(.2, .7, .1, 1) .1s both; }
+  .beam span { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); }
+  .b-spill {
+    height: 90px;
+    background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(42, 163, 255, 0.22), transparent 70%);
+    filter: blur(8px);
+  }
+  .b-glow {
+    height: 14px;
+    background: linear-gradient(90deg, transparent, var(--beam-edge) 22%, var(--beam) 50%, var(--beam-edge) 78%, transparent);
+    filter: blur(9px);
+    opacity: 0.75;
+  }
+  .b-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--beam-edge) 18%, var(--beam) 50%, var(--beam-edge) 82%, transparent);
+  }
+  .beam .b-core {
+    left: 30%; right: 30%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--beam-core), transparent);
+    filter: blur(1.5px);
+    animation: breathe 5s ease-in-out infinite;
+  }
+
+  .field {
+    position: absolute;
+    left: 50%;
+    top: -92px;
+    width: min(100vw, 1240px);
+    height: 400px;
+    transform: translateX(-50%);
+    pointer-events: none;
+    -webkit-mask-image: radial-gradient(ellipse 48% 50% at 50% 23%, #000 0%, rgba(0,0,0,.72) 45%, transparent 100%);
+    mask-image: radial-gradient(ellipse 48% 50% at 50% 23%, #000 0%, rgba(0,0,0,.72) 45%, transparent 100%);
+    animation: fadeIn 2s ease .9s both;
+  }
+  .field canvas { display: block; width: 100%; height: 100%; }
+
+  .tagline {
+    position: relative;
+    z-index: 2;
+    margin: 3.4rem 0 0;
+    max-width: 30rem;
+    font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+    line-height: 1.5;
+    color: #bcc4d2;
+    animation: fadeIn 1s ease 1.5s both;
+  }
+  .cta {
+    position: relative;
+    z-index: 2;
+    margin-top: 1.8rem;
+    animation: fadeIn 1s ease 1.7s both;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0 26px;
+    font: 600 0.95rem var(--body);
+    color: var(--ink);
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color .25s, box-shadow .25s, background .25s, color .25s;
+  }
+  .btn:hover:not(:disabled) {
+    border-color: rgba(125, 211, 252, 0.55);
+    box-shadow: 0 0 28px rgba(42, 163, 255, 0.3);
+    background: rgba(42, 163, 255, 0.07);
+  }
+  .btn:disabled { opacity: 0.6; cursor: progress; }
+  .btn.solid { background: #e6e6e6; color: #000; border-color: transparent; }
+  .btn.solid:hover:not(:disabled) { background: #fff; box-shadow: 0 0 28px rgba(42, 163, 255, 0.45); }
+
+  @keyframes beamIn { from { transform: scaleX(0); opacity: 0; } to { transform: scaleX(1); opacity: 1; } }
+  @keyframes riseIn { from { opacity: 0; filter: blur(10px); transform: translateY(12px); } to { opacity: 1; filter: blur(0); transform: none; } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes breathe { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+
+  /* ---------- sections ---------- */
+  .wrap { width: min(1120px, 100%); margin: 0 auto; padding: 0 24px; }
+  section.block { padding: clamp(72px, 10vw, 132px) 0 0; }
+  h2 {
+    margin: 0 0 12px;
+    font: 700 clamp(1.7rem, 3.6vw, 2.5rem)/1.15 var(--display);
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .lede { margin: 0 0 40px; max-width: 38rem; color: var(--mute); }
+
+  /* ---------- scan preview ---------- */
+  .console { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; align-items: start; }
+  .panel {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    min-height: 62px;
+  }
+  .fname { font: 500 0.875rem var(--mono); color: var(--ink); }
+  .tag {
+    font-size: 0.8125rem;
+    color: var(--med);
+    border: 1px solid rgba(255, 180, 84, 0.35);
+    padding: 3px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  #filelist { list-style: none; margin: 0; padding: 8px 0; font: 400 0.9rem var(--mono); }
+  #filelist li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 34px 1fr 30px;
+    align-items: center;
+    min-height: 44px;
+    padding-right: 14px;
+    color: #c5ccd8;
+    transition: background .3s;
+  }
+  #filelist li::before {
+    content: "";
+    position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px;
+    background: var(--beam);
+    box-shadow: 0 0 12px var(--beam);
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  #filelist li.active { background: linear-gradient(90deg, rgba(42, 163, 255, 0.14), transparent 80%); }
+  #filelist li.active::before { opacity: 1; }
+  .ln { color: var(--dim); text-align: right; padding-right: 14px; font-size: 0.8rem; }
+  .st { display: flex; justify-content: center; }
+  .st .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .st .dot[data-sev="high"] { background: var(--high); box-shadow: 0 0 10px var(--high); }
+  .st .dot[data-sev="med"] { background: var(--med); box-shadow: 0 0 10px var(--med); }
+  .st .dot[data-sev="low"] { background: var(--low); box-shadow: 0 0 10px var(--low); }
+  .st svg { width: 15px; height: 15px; stroke: var(--low); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; }
+
+  .foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    border-top: 1px solid var(--line);
+  }
+  .status { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--mute); min-width: 0; }
+  .status i { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dim); transition: background .3s, box-shadow .3s; }
+  .status.busy i { background: var(--beam); box-shadow: 0 0 10px var(--beam); }
+  .status.done i { background: var(--low); box-shadow: 0 0 10px var(--low); }
+
+  .results-body { padding: 18px; min-height: 360px; }
+  .empty { display: grid; place-items: center; min-height: 324px; text-align: center; color: var(--mute); }
+  .empty p { margin: 0; max-width: 18rem; }
+
+  .summary { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0 0 16px; font-size: 0.9rem; color: var(--mute); }
+  .summary b { color: var(--ink); font-weight: 600; }
+  .summary .sv { display: inline-flex; align-items: center; gap: 7px; }
+  .summary .sv i { width: 8px; height: 8px; border-radius: 50%; }
+
+  .finding {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--c);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    opacity: 0;
+    transform: translateY(8px);
+    animation: findIn .5s cubic-bezier(.2, .7, .1, 1) forwards;
+    animation-delay: calc(var(--i) * 140ms);
+  }
+  .finding[data-sev="high"] { --c: var(--high); }
+  .finding[data-sev="med"] { --c: var(--med); }
+  .finding[data-sev="low"] { --c: var(--low); }
+  @keyframes findIn { to { opacity: 1; transform: none; } }
+  .rank {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center;
+    font: 700 0.85rem var(--display);
+    color: var(--c);
+    border: 1px solid var(--c);
+  }
+  .f-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  .pkg { font: 500 0.95rem var(--mono); color: var(--ink); }
+  .ver { font: 400 0.85rem var(--mono); color: var(--mute); }
+  .sev { margin-left: auto; font-size: 0.85rem; font-weight: 600; color: var(--c); }
+  .sum { margin: 6px 0 0; font-size: 0.95rem; color: var(--text); }
+  .fix { margin: 6px 0 0; font-size: 0.875rem; color: var(--mute); }
+  .why-h { margin: 12px 0 6px; font-size: 0.8125rem; color: var(--mute); }
+  .why { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .why li {
+    font-size: 0.8125rem;
+    padding: 3px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: #c5ccd8;
+  }
+  .note { margin: 14px 0 0; font-size: 0.8125rem; color: var(--mute); }
+
+  /* ---------- roadmap ---------- */
+  .phases {
+    list-style: none; margin: 0; padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+  }
+  .phases li {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    color: var(--mute);
+  }
+  .phases .n {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center;
+    font: 600 0.8rem var(--display);
+    border: 1px solid var(--line);
+  }
+  .phases .t { display: block; color: #c5ccd8; font-weight: 600; font-size: 0.95rem; line-height: 1.3; }
+  .phases .s { display: block; font-size: 0.8125rem; }
+  .phases li.done { border-color: rgba(94, 234, 212, 0.35); }
+  .phases li.done .n { color: #000; background: var(--low); border-color: var(--low); }
+  .phases li.next { border-color: rgba(42, 163, 255, 0.45); box-shadow: 0 0 24px rgba(42, 163, 255, 0.12) inset; }
+  .phases li.next .n { color: var(--beam); border-color: var(--beam); }
+  .phases li.next .s { color: var(--beam); }
+
+  footer { padding: 96px 0 56px; color: var(--mute); font-size: 0.875rem; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; }
+
+  @media (max-width: 860px) {
+    .console { grid-template-columns: 1fr; }
+    .links a:first-child { display: none; }
+  }
+  @media (max-width: 480px) {
+    .chip { font-size: 0.8125rem; padding: 6px 12px; }
+    .tagline { margin-top: 2.6rem; }
+    .field { top: -70px; height: 330px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .finding { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero" id="top">
+  <nav class="top" aria-label="Primary">
+    <span class="chip"><i></i>Phase 2 complete</span>
+    <div class="links">
+      <a href="#scan">Scan preview</a>
+      <a href="#roadmap">Roadmap</a>
+    </div>
+  </nav>
+
+  <div class="stage">
+    <h1 class="wordmark">Valtrix</h1>
+    <div class="beam-wrap" aria-hidden="true">
+      <div class="field"><canvas id="sparkles"></canvas></div>
+      <div class="beam">
+        <span class="b-spill"></span>
+        <span class="b-glow"></span>
+        <span class="b-line"></span>
+        <span class="b-core"></span>
+      </div>
+    </div>
+    <p class="tagline">Find the vulnerable dependencies in your project, then fix the ones that matter first.</p>
+    <div class="cta"><a class="btn" href="#scan">See a sample scan</a></div>
+  </div>
+</header>
+
+<main>
+  <section class="block" id="scan" aria-labelledby="scan-h">
+    <div class="wrap">
+      <h2 id="scan-h">What a scan will look like</h2>
+      <p class="lede">Valtrix reads your dependency file, checks each package against a vulnerability database, and ranks what it finds. This preview runs on made-up packages and canned results.</p>
+
+      <div class="console">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="fname">requirements.txt</span>
+            <span class="tag">Sample project</span>
+          </div>
+          <ul id="filelist" aria-label="Dependencies in the sample file">
+            <li data-state="high" data-sev="high"><span class="ln">1</span><span>quanta-orm==3.2.0</span><span class="st"></span></li>
+            <li data-state="med" data-sev="med"><span class="ln">2</span><span>lattice-web==2.0.1</span><span class="st"></span></li>
+            <li data-state="clean"><span class="ln">3</span><span>orbit-http==2.31.0</span><span class="st"></span></li>
+            <li data-state="clean"><span class="ln">4</span><span>numeris==1.26.0</span><span class="st"></span></li>
+            <li data-state="low" data-sev="low"><span class="ln">5</span><span>yamlforge==5.3</span><span class="st"></span></li>
+          </ul>
+          <div class="foot">
+            <div class="status" role="status" aria-live="polite"><i></i><span id="statusText">Ready to scan 5 packages</span></div>
+            <button class="btn solid" id="run" type="button">Run sample scan</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <span class="fname">Findings, fix first</span>
+            <span class="tag">Illustrative output</span>
+          </div>
+          <div class="results-body" id="results">
+            <div class="empty"><p>Run the sample scan to see findings ranked by what to fix first.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="roadmap" aria-labelledby="road-h">
+    <div class="wrap">
+      <h2 id="road-h">Where Valtrix is going</h2>
+      <p class="lede">Built in phases. Machine learning arrives in phase 9, after a rule-based baseline exists to compare it against.</p>
+      <ol class="phases">
+        <li class="done"><span class="n">1</span><span><span class="t">Project foundation</span><span class="s">Done</span></span></li>
+        <li class="done"><span class="n">2</span><span><span class="t">Dependency discovery</span><span class="s">Done</span></span></li>
+        <li class="next"><span class="n">3</span><span><span class="t">Vulnerability database</span><span class="s">Up next</span></span></li>
+        <li><span class="n">4</span><span><span class="t">Vulnerability scanner</span><span class="s">Planned</span></span></li>
+        <li><span class="n">5</span><span><span class="t">Reporting</span><span class="s">Planned</span></span></li>
+        <li><span class="n">6</span><span><span class="t">More ecosystems</span><span class="s">Planned</span></span></li>
+        <li><span class="n">7</span><span><span class="t">Dependency graph</span><span class="s">Planned</span></span></li>
+        <li><span class="n">8</span><span><span class="t">Risk rules</span><span class="s">Planned</span></span></li>
+        <li><span class="n">9</span><span><span class="t">Machine learning</span><span class="s">Planned</span></span></li>
+        <li><span class="n">10</span><span><span class="t">Explainability</span><span class="s">Planned</span></span></li>
+        <li><span class="n">11</span><span><span class="t">Developer experience</span><span class="s">Planned</span></span></li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Valtrix 0.1.0</span>
+    <span>Packages and findings on this page are made up.</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- sparkle field ---------- */
+  var hero = document.getElementById("top");
+  var canvas = document.getElementById("sparkles");
+  var ctx = canvas.getContext("2d");
+  var w = 0, h = 0, dpr = 1, parts = [], raf = 0, last = 0, onScreen = true;
+  var pointer = { x: -9999, y: -9999 };
+
+  function make() {
+    return {
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: 0.35 + Math.pow(Math.random(), 2.2) * 1.15,
+      a: 0.25 + Math.random() * 0.75,
+      s: 0.4 + Math.random() * 1.8,
+      p: Math.random() * Math.PI * 2,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 4,
+      tint: Math.random() < 0.18
+    };
+  }
+
+  function resize() {
+    var r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = r.width; h = r.height;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var n = Math.min(650, Math.round((w * h) / 800));
+    parts = [];
+    for (var i = 0; i < n; i++) parts.push(make());
+    draw(performance.now(), 0);
+  }
+
+  function draw(t, dt) {
+    ctx.clearRect(0, 0, w, h);
+    var R = 110, R2 = R * R, sec = t / 1000;
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i];
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.x < 0) p.x += w; else if (p.x > w) p.x -= w;
+      if (p.y < 0) p.y += h; else if (p.y > h) p.y -= h;
+
+      var tw = 0.5 + 0.5 * Math.sin(sec * p.s + p.p);
+      var alpha = p.a * (0.25 + 0.75 * tw);
+      var rad = p.r;
+      var dx = p.x - pointer.x, dy = p.y - pointer.y, d2 = dx * dx + dy * dy;
+      if (d2 < R2) {
+        var k = 1 - Math.sqrt(d2) / R;
+        alpha = Math.min(1, alpha + k * 0.8);
+        rad = p.r * (1 + k * 0.9);
+      }
+      ctx.fillStyle = (p.tint ? "rgba(160,212,255," : "rgba(255,255,255,") + alpha.toFixed(3) + ")";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rad, 0, 6.2832);
+      ctx.fill();
+    }
+  }
+
+  function loop(t) {
+    var dt = Math.min((t - last) / 1000, 0.05);
+    last = t;
+    draw(t, dt);
+    raf = requestAnimationFrame(loop);
+  }
+  function start() { if (!raf && !reduce && onScreen && !document.hidden) { last = performance.now(); raf = requestAnimationFrame(loop); } }
+  function stop() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+
+  hero.addEventListener("pointermove", function (e) {
+    var r = canvas.getBoundingClientRect();
+    pointer.x = e.clientX - r.left; pointer.y = e.clientY - r.top;
+  });
+  hero.addEventListener("pointerleave", function () { pointer.x = pointer.y = -9999; });
+  document.addEventListener("visibilitychange", function () { document.hidden ? stop() : start(); });
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (en) { onScreen = en[0].isIntersecting; onScreen ? start() : stop(); }).observe(hero);
+  }
+  if ("ResizeObserver" in window) new ResizeObserver(resize).observe(canvas); else window.addEventListener("resize", resize);
+  resize();
+  start();
+
+  /* ---------- sample scan ---------- */
+  var findings = [
+    { sev: "high", label: "High", pkg: "quanta-orm", ver: "3.2.0",
+      sum: "Query input is not escaped before it reaches the database.",
+      fix: "Fixed in 3.2.25",
+      why: ["High severity", "Exploitation seen in the wild", "Used by public routes", "Fix available"] },
+    { sev: "med", label: "Medium", pkg: "lattice-web", ver: "2.0.1",
+      sum: "Session cookies can be read by other sites in some setups.",
+      fix: "Fixed in 2.3.8",
+      why: ["Medium severity", "Direct dependency", "Fix available"] },
+    { sev: "low", label: "Low", pkg: "yamlforge", ver: "5.3",
+      sum: "Loading an untrusted file can run unexpected code.",
+      fix: "Fixed in 5.4",
+      why: ["Low severity", "Only used in build tooling", "No known exploitation", "Fix available"] }
+  ];
+  var sevColor = { high: "var(--high)", med: "var(--med)", low: "var(--low)" };
+
+  var items = Array.prototype.slice.call(document.querySelectorAll("#filelist li"));
+  var statusBox = document.querySelector(".status");
+  var statusText = document.getElementById("statusText");
+  var runBtn = document.getElementById("run");
+  var results = document.getElementById("results");
+  var running = false;
+  var CHECK = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
+
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, reduce ? 0 : ms); }); }
+  function say(msg, mode) { statusText.textContent = msg; statusBox.className = "status" + (mode ? " " + mode : ""); }
+
+  function render() {
+    var html = '<div class="summary">' +
+      '<span><b>3</b> of 5 packages have findings</span>' +
+      '<span class="sv"><i style="background:var(--high)"></i><b>1</b> High</span>' +
+      '<span class="sv"><i style="background:var(--med)"></i><b>1</b> Medium</span>' +
+      '<span class="sv"><i style="background:var(--low)"></i><b>1</b> Low</span></div>';
+    findings.forEach(function (f, i) {
+      html += '<article class="finding" data-sev="' + f.sev + '" style="--i:' + i + '">' +
+        '<div class="rank">' + (i + 1) + '</div><div>' +
+        '<div class="f-top"><span class="pkg">' + f.pkg + '</span><span class="ver">' + f.ver + '</span><span class="sev">' + f.label + '</span></div>' +
+        '<p class="sum">' + f.sum + '</p><p class="fix">' + f.fix + '</p>' +
+        '<p class="why-h">Why it ranks here</p><ul class="why">' +
+        f.why.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ul></div></article>';
+    });
+    html += '<p class="note">Packages, versions, and findings are made up to show the layout.</p>';
+    results.innerHTML = html;
+  }
+
+  async function run() {
+    if (running) return;
+    running = true;
+    runBtn.disabled = true; runBtn.textContent = "Scanning";
+    items.forEach(function (li) { li.classList.remove("active"); li.querySelector(".st").innerHTML = ""; });
+    results.innerHTML = '<div class="empty"><p>Scanning</p></div>';
+
+    say("Reading requirements.txt", "busy"); await sleep(650);
+    say("Checking 5 packages against the vulnerability database", "busy");
+    for (var i = 0; i < items.length; i++) {
+      var li = items[i];
+      li.classList.add("active");
+      await sleep(560);
+      li.classList.remove("active");
+      li.querySelector(".st").innerHTML = li.dataset.state === "clean"
+        ? CHECK
+        : '<span class="dot" data-sev="' + li.dataset.sev + '"></span>';
+    }
+    say("Ranking findings by risk", "busy"); await sleep(750);
+    render();
+    say("Done. 3 of 5 packages have findings.", "done");
+    runBtn.disabled = false; runBtn.textContent = "Run again";
+    running = false;
+  }
+  runBtn.addEventListener("click", run);
+})();
+</script>
+</body>
+</html>

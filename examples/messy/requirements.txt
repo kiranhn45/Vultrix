@@ -1,0 +1,10 @@
+# A deliberately messy file to exercise the parser
+-r base.txt
+
+Flask_SQLAlchemy == 3.0.0      # name gets normalized
+django>=3.2, <4.0              # range, so not pinned
+numpy                          # no version at all
+pywin32==306; sys_platform == "win32"
+mypkg @ https://example.com/mypkg.zip
+--index-url https://example.com/simple
+==oops
