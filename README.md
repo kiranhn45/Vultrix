@@ -2,7 +2,7 @@
 
 Scan a project's dependencies for known vulnerabilities, then work out which ones to fix first.
 
-> Status: early development. Phases 1 and 2 are complete: `valtrix scan` lists the dependencies in `requirements.txt`. Vulnerability lookup is not implemented yet.
+> Status: early development. Phases 1 to 3 are built. `valtrix scan` lists the dependencies in `requirements.txt`, and `valtrix lookup` checks one package version against OSV. A full scan that combines the two arrives in Phase 4.
 
 ## Install (development)
 
@@ -19,19 +19,22 @@ valtrix --help
 valtrix --version
 valtrix scan .
 valtrix scan examples/messy   # a deliberately messy example
+valtrix lookup requests 2.25.1   # needs internet
 ```
 
-## Tests
+## Tests and the phase gate
 
 ```bash
-pytest
+pytest                           # offline tests
+pytest -m live                   # real OSV API (needs internet)
+python scripts/check.py          # full phase gate, run before every commit
 ```
 
 ## Roadmap
 
 1. Project foundation (done)
 2. Dependency discovery (`requirements.txt` parser) (done)
-3. OSV vulnerability database client
+3. OSV vulnerability database client (done)
 4. Vulnerability scanner
 5. Reporting (terminal, JSON, HTML)
 6. More ecosystems

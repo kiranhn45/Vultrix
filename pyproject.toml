@@ -22,3 +22,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not live'"
+markers = [
+    "live: talks to the real OSV API and needs internet. Run with: pytest -m live",
+]
