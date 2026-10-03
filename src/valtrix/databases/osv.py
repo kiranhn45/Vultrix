@@ -22,7 +22,7 @@ import urllib.request
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Tuple
 
 from valtrix import __version__
-from valtrix.models import Vulnerability, normalize_name
+from valtrix.models import Vulnerability, merge_related, normalize_name
 
 DEFAULT_BASE_URL = "https://api.osv.dev"
 PYPI = "PyPI"
@@ -221,7 +221,8 @@ class OsvClient:
         """Return the known vulnerabilities affecting `name` at exactly `version`.
 
         An empty list means OSV knows of none for that exact version. It does
-        not prove the package is safe.
+        not prove the package is safe. Records that are the same issue under
+        different IDs (GHSA, PYSEC, CVE) come back merged into one.
 
         Raises ValueError for malformed arguments and OsvError if OSV cannot be
         reached or answers with something unusable.
@@ -268,6 +269,7 @@ class OsvClient:
         else:
             raise OsvError(f"OSV returned more than {MAX_PAGES} pages of results; giving up")
 
+        found = merge_related(found)
         self._cache[key] = tuple(found)
         return found
 

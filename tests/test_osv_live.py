@@ -21,3 +21,12 @@ def test_live_known_vulnerable_version_has_findings():
 
 def test_live_unknown_package_returns_empty_list():
     assert OsvClient().query("valtrix-no-such-package-xyz", "1.0.0") == []
+
+
+def test_live_same_issue_is_not_listed_twice():
+    vulns = OsvClient().query("django", "3.2.0")
+    seen = {}
+    for vuln in vulns:
+        for ident in (vuln.id, *vuln.aliases):
+            assert ident not in seen, f"{ident} appears in both {seen[ident]} and {vuln.id}"
+        seen.update({ident: vuln.id for ident in (vuln.id, *vuln.aliases)})

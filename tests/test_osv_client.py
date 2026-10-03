@@ -229,8 +229,8 @@ def test_results_are_parsed():
 
 def test_pagination_collects_every_page_without_duplicates():
     opener = FakeOpener(
-        FakeResponse({"vulns": [record(id="A-1"), record(id="A-2")], "next_page_token": "tok1"}),
-        FakeResponse({"vulns": [record(id="A-2"), record(id="A-3")]}),
+        FakeResponse({"vulns": [record(id="A-1", aliases=[]), record(id="A-2", aliases=[])], "next_page_token": "tok1"}),
+        FakeResponse({"vulns": [record(id="A-2", aliases=[]), record(id="A-3", aliases=[])]}),
     )
     found = client(opener).query("requests", "2.25.1")
     assert [v.id for v in found] == ["A-1", "A-2", "A-3"]
@@ -360,3 +360,23 @@ def test_invalid_ecosystem_is_rejected():
 def test_non_https_base_url_is_rejected(url):
     with pytest.raises(ValueError):
         OsvClient(base_url=url)
+
+
+# ------------------------------------------- the same issue under several IDs
+
+def test_client_merges_ghsa_and_pysec_copies_of_one_issue():
+    ghsa = record(id="GHSA-xxxx", aliases=["CVE-2022-1", "PYSEC-2022-1"])
+    pysec = record(
+        id="PYSEC-2022-1",
+        aliases=["CVE-2022-1", "GHSA-xxxx"],
+        summary="",
+        database_specific=None,
+        severity=None,
+    )
+    found = client(FakeOpener(FakeResponse({"vulns": [pysec, ghsa]}))).query("requests", "2.25.1")
+    assert len(found) == 1
+    merged = found[0]
+    assert merged.id == "GHSA-xxxx"
+    assert merged.severity_label == "MEDIUM"
+    assert merged.summary == "Something is wrong"
+    assert merged.aliases == ("CVE-2022-1", "PYSEC-2022-1")
