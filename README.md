@@ -2,7 +2,7 @@
 
 Scan a project's dependencies for known vulnerabilities, then work out which ones to fix first.
 
-> Status: early development. Phases 1 to 3 are built. `valtrix scan` lists the dependencies in `requirements.txt`, and `valtrix lookup` checks one package version against OSV. A full scan that combines the two arrives in Phase 4.
+> Status: early development. Phases 1 to 4 are built. `valtrix scan` checks every pinned dependency in `requirements.txt` against OSV and `valtrix lookup` checks one package version.
 
 ## Install (development)
 
@@ -17,10 +17,24 @@ pip install -e ".[dev]"
 ```bash
 valtrix --help
 valtrix --version
-valtrix scan .
-valtrix scan examples/messy   # a deliberately messy example
-valtrix lookup requests 2.25.1   # needs internet
+valtrix scan .                    # check the project in this folder (needs internet)
+valtrix scan . --details          # list every issue, not just a summary
+valtrix scan . --offline          # only list the dependencies, no network
+valtrix scan examples/messy --offline   # a deliberately messy example
+valtrix lookup requests 2.25.1    # check one package version (needs internet)
 ```
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Nothing vulnerable found and every lookup succeeded |
+| 1 | Known vulnerabilities were found |
+| 2 | Bad input (missing path, unreadable file, invalid name or version) |
+| 3 | The check could not be completed (OSV unreachable or a lookup failed) |
+
+Dependencies without an exact `==` pin cannot be checked precisely. They are listed
+as "Not checked" and do not change the exit code.
 
 ## Tests and the phase gate
 
@@ -35,7 +49,7 @@ python scripts/check.py          # full phase gate, run before every commit
 1. Project foundation (done)
 2. Dependency discovery (`requirements.txt` parser) (done)
 3. OSV vulnerability database client (done)
-4. Vulnerability scanner
+4. Vulnerability scanner (done)
 5. Reporting (terminal, JSON, HTML)
 6. More ecosystems
 7. Dependency graph (transitive dependencies)

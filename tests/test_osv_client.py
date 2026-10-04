@@ -294,6 +294,27 @@ def test_bad_request_is_not_retried():
     assert len(opener.calls) == 1
 
 
+@pytest.mark.parametrize("code", [401, 403, 407])
+def test_access_errors_are_not_retried_and_stop_the_scan(code):
+    opener = FakeOpener(http_error(code, body=b"blocked"))
+    with pytest.raises(OsvError) as exc:
+        client(opener).query("requests", "2.31.0")
+    assert exc.value.unreachable is True
+    assert len(opener.calls) == 1
+
+
+def test_bad_request_is_package_specific_not_unreachable():
+    with pytest.raises(OsvError) as exc:
+        client(FakeOpener(http_error(400, body=b"bad"))).query("requests", "2.31.0")
+    assert exc.value.unreachable is False
+
+
+def test_exhausted_retries_mean_unreachable():
+    with pytest.raises(OsvError) as exc:
+        client(FakeOpener(repeat=http_error(503)), max_retries=1).query("requests", "2.31.0")
+    assert exc.value.unreachable is True
+
+
 def test_network_error_is_retried():
     opener = FakeOpener(urllib.error.URLError("connection refused"), FakeResponse({}))
     c = client(opener)

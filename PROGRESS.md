@@ -3,7 +3,7 @@
 Update this file at the end of every step. Paste it into a new chat to resume.
 
 ## Current phase
-Phase 3: OSV vulnerability database client. Live check passed on the user's machine; de-duplication fix awaiting a live re-check.
+Phase 4: the scanner. Built; waiting for the live check on the user's machine.
 
 ## Done
 - Phase 1: repo layout, `pyproject.toml`, `valtrix` command, README, LICENSE, `.gitignore`
@@ -22,6 +22,20 @@ Phase 3: OSV vulnerability database client. Live check passed on the user's mach
     django 3.2.0 returned 66 records for about 33 issues, and the PYSEC copies lacked severity.
     `merge_related()` (`models/vulnerability.py`) now merges records that share any identifier,
     keeps the richest record's ID, unions fields, and loses no identifier. Mutation-checked.
+- Phase 4:
+  - `valtrix/versions.py`: PEP 440 subset comparison, `choose_fix()`, `sort_versions()`.
+    Cross-checked against the `packaging` library; real django fix lists are test cases.
+  - `Finding` (one dependency + one vulnerability + the fix that applies), `Unchecked`, `ScanResult`
+    (`models/finding.py`)
+  - `scan_dependencies()` / `scan_project()` (`scanner/dependency_scanner.py`): a failing package never
+    stops the scan; 3 unreachable failures in a row (network down, HTTP 401/403/407, repeated 5xx)
+    stop it early and the rest are listed as not checked; duplicate pins are checked once
+  - `valtrix scan` summarizes per dependency, `--details` lists every issue, `--offline` skips the network
+  - Exit codes 0/1/2/3 (documented in README and `--help`)
+  - A real run in a network-blocked sandbox found two bugs the fake-client tests missed:
+    "No known vulnerabilities" was printed when nothing was checked, and HTTP 403 did not stop the scan
+    early. Both fixed and tested.
+  - Mutation-checked: 14 deliberate bugs. One survivor revealed dead logic in `choose_fix`; simplified.
 - Phase gate: `python scripts/check.py` (see below)
 - UI mock-up in `ui/index.html` (sample data only; roadmap still shows Phase 2, update after the live check)
 
@@ -33,22 +47,26 @@ Phase 3: OSV vulnerability database client. Live check passed on the user's mach
 - Includes may not leave the project folder
 - A withdrawn OSV advisory is a retracted false alarm, so it is not reported
 - Records sharing any identifier are one issue and are merged (found by the live check, not by mocks)
+- A Finding is one (dependency, vulnerability) pair; that pair is what Phase 8 ranks
+- The fix to show is the lowest listed fix above the installed version
+- Unpinned dependencies are reported, never silently skipped, and do not fail the scan
+- Never print "no vulnerabilities" unless at least one dependency was actually checked
+- Exit codes: 0 clean, 1 findings, 2 bad input, 3 incomplete (findings take priority over incomplete)
+- The gate captures command output in temp files, never pipes, closes stdin, and times out every command.
+  A `git status` hung the gate on the user's Windows machine (suspected cause: a background git process
+  kept the output pipe open). Reproduced the pattern and added regression tests (`tests/test_check_script.py`).
 - Severity is stored as published (label and CVSS vector). Computing scores belongs to Phase 8.
 - V1 is not AI. ML arrives in Phase 9, compared against a rule-based baseline.
 - No automatic patching; a human reviews every fix.
 
 ## Next step
-Phase 4: the scanner. Combine parser and OSV client.
-- `Finding` model: one Dependency plus its Vulnerabilities
-- Scan every pinned dependency; report unpinned ones as "cannot check exactly"
-- If OSV fails for one package, record the error for that package and continue
-- `valtrix scan` prints findings and exits non-zero when vulnerabilities are found (needed for CI later)
-- Fixed versions currently list every release line (django 3.2.0 shows "2.2.28, 3.2.13, 4.0.4").
-  Choose the fix that applies to the installed version (same release line, else the lowest
-  version above it) and show that one first. Needs a small version comparison helper.
-- Fixed versions are not sorted; sort them once comparison exists.
-- `lookup` output is long for old packages (about 33 issues for django 3.2.0); `scan` should
-  summarize counts per package and let details be expanded.
+Phase 5: reporting.
+- Move the terminal output out of `cli.py` into `reports/terminal.py` as pure functions that return text
+- `--format json`: stable, documented structure (this becomes the CI interface)
+- `--format html`: one self-contained file. Every value from OSV (summaries, ids, URLs) is untrusted and
+  must be HTML-escaped; links limited to http(s). Add tests that try to inject markup.
+- Include the version, scan time, sources, unchecked dependencies, and the incomplete flag in JSON/HTML
+- `--output FILE` to write a report
 
 ## Phase gate
 Run after every phase, before committing:
@@ -72,3 +90,4 @@ The gate must print GATE PASSED. Then walk this checklist:
 | Phase 2: dependency discovery | 2026-10-03 | 40 passed (sandbox) | offline only |
 | Phase 3: OSV vulnerability database client | 2026-10-03 | 99 passed, 2 deselected (user machine, Python 3.14) | offline + live, passed. Committed ccd219c |
 | Phase 3 fix: merge duplicate advisories | 2026-10-03 | 108 passed, 3 deselected (sandbox) | offline. Live re-check pending on user machine |
+| Phase 4: the scanner | 2026-10-04 | 182 passed, 4 deselected (sandbox) | offline. Live check pending on user machine; gate hung at the git step on first run, fixed |

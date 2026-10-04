@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
@@ -33,11 +34,37 @@ Result = Tuple[str, str]  # (status, detail)
 # ------------------------------------------------------------------ helpers
 
 def run(cmd: List[str], timeout: int = 300) -> subprocess.CompletedProcess:
-    env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
-    return subprocess.run(
-        cmd, cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
-        errors="replace", timeout=timeout, env=env,
-    )
+    """Run a command and capture its output. Never hangs the gate.
+
+    Output goes to temporary files, not pipes: a command that leaves a
+    background process behind (git can) would otherwise keep a pipe open and
+    block us after the command itself has finished. Standard input is closed
+    so nothing can wait for a keypress, and a timeout turns a stuck command
+    into an ordinary failure (return code 124).
+    """
+    env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1",
+               GIT_OPTIONAL_LOCKS="0", GIT_TERMINAL_PROMPT="0")
+    with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
+        note = ""
+        try:
+            code = subprocess.run(
+                cmd, cwd=ROOT, stdin=subprocess.DEVNULL, stdout=out, stderr=err,
+                timeout=timeout, env=env,
+            ).returncode
+        except subprocess.TimeoutExpired:
+            code, note = 124, f"timed out after {timeout} seconds"
+        out.seek(0)
+        err.seek(0)
+        return subprocess.CompletedProcess(
+            cmd, code,
+            out.read().decode("utf-8", "replace"),
+            err.read().decode("utf-8", "replace") + note,
+        )
+
+
+# Git can start background helpers (file monitoring, housekeeping). The gate
+# only needs a quick read, so it switches them off.
+GIT = ["git", "-c", "core.fsmonitor=false", "-c", "gc.auto=0", "-c", "maintenance.auto=false"]
 
 
 def tail(text: str, lines: int = 15) -> str:
@@ -94,12 +121,14 @@ def check_tests() -> Result:
 
 
 def check_cli() -> Result:
+    # Every case here must work without internet: `scan` is run with --offline.
     cases = [
         (["--version"], 0, "valtrix"),
-        (["--help"], 0, "scan"),
+        (["--help"], 0, "Exit codes"),
+        (["scan", "--help"], 0, "--offline"),
         (["lookup", "--help"], 0, "package"),
-        (["scan", "examples"], 0, "Found"),
-        (["scan", "examples/messy"], 0, "could not be used"),
+        (["scan", "examples", "--offline"], 0, "Found"),
+        (["scan", "examples/messy", "--offline"], 0, "could not be used"),
         (["scan", "this-folder-does-not-exist"], 2, ""),
         (["lookup", "bad name", "1.0"], 2, ""),
     ]
@@ -175,13 +204,17 @@ def check_git() -> Result:
         return WARN, "git is not installed"
     if not (ROOT / ".git").exists():
         return WARN, "not a git repository yet. Run: git init"
-    tracked = run(["git", "ls-files"]).stdout.splitlines()
-    bad = [f for f in tracked if f.startswith((".venv/", "venv/")) or Path(f).name.startswith(".env")]
+    listing = run(GIT + ["ls-files"], timeout=60)
+    if listing.returncode != 0:
+        return WARN, f"git did not answer ({tail(listing.stderr, 2) or 'no details'}). Skipped the git checks"
+    bad = [f for f in listing.stdout.splitlines() if f.startswith((".venv/", "venv/")) or Path(f).name.startswith(".env")]
     if bad:
         return FAIL, "these must not be committed: " + ", ".join(bad[:5])
-    status = run(["git", "status", "--porcelain"]).stdout.strip()
-    if status:
-        return WARN, f"{len(status.splitlines())} uncommitted changes. Commit this phase once the gate passes"
+    status = run(GIT + ["status", "--porcelain"], timeout=60)
+    if status.returncode != 0:
+        return WARN, f"git status did not finish ({tail(status.stderr, 2) or 'no details'}). Skipped the clean check"
+    if status.stdout.strip():
+        return WARN, f"{len(status.stdout.strip().splitlines())} uncommitted changes. Commit this phase once the gate passes"
     return PASS, "git is clean and nothing sensitive is tracked"
 
 

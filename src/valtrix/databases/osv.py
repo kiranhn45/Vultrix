@@ -31,6 +31,9 @@ MAX_RESPONSE_BYTES = 10_000_000
 MAX_PAGES = 20
 MAX_DELAY_SECONDS = 30.0
 RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+# Access problems (blocked, proxy login needed) hit every request the same way,
+# so callers should stop instead of trying each remaining package.
+ACCESS_STATUS = frozenset({401, 403, 407})
 
 _MAX_SUMMARY = 500
 _MAX_DETAILS = 5_000
@@ -54,8 +57,16 @@ _SEVERITY_LABELS = {
 class OsvError(Exception):
     """OSV could not be queried or returned something unusable.
 
-    The message is written for the person running Valtrix.
+    The message is written for the person running Valtrix. `unreachable` is
+    True when OSV could not be contacted at all (network down, repeated server
+    errors, certificate problems), so callers can stop instead of trying every
+    remaining package. It is False when OSV answered but rejected or garbled
+    this particular request.
     """
+
+    def __init__(self, message: str, unreachable: bool = False) -> None:
+        super().__init__(message)
+        self.unreachable = unreachable
 
 
 # ------------------------------------------------------------ parsing records
@@ -306,14 +317,18 @@ class OsvClient:
                     retry_after = _parse_retry_after(exc.headers)
                 else:
                     detail = f": {snippet}" if snippet else ""
-                    raise OsvError(f"OSV rejected the request (HTTP {exc.code}){detail}") from exc
+                    raise OsvError(
+                        f"OSV rejected the request (HTTP {exc.code}){detail}",
+                        unreachable=exc.code in ACCESS_STATUS,
+                    ) from exc
             except (OSError, http.client.HTTPException) as exc:
                 reason = getattr(exc, "reason", exc)
                 if isinstance(reason, ssl.SSLCertVerificationError):
                     raise OsvError(
                         "Could not verify OSV's security certificate, so the "
                         "connection was refused. Check your system clock, proxy, "
-                        "or antivirus HTTPS scanning."
+                        "or antivirus HTTPS scanning.",
+                        unreachable=True,
                     ) from exc
                 last_problem = _describe(reason)
             else:
@@ -325,7 +340,8 @@ class OsvClient:
 
         raise OsvError(
             f"Could not get an answer from OSV after {attempts} attempts ({last_problem}). "
-            "Check your internet connection and try again."
+            "Check your internet connection and try again.",
+            unreachable=True,
         )
 
 
