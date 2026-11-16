@@ -42,6 +42,9 @@ _MAX_ITEMS = 50
 
 _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
 _VERSION = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.+!_-]{0,199}$")
+# npm scopes ("@scope/name") and Go module paths ("github.com/a/b") need more
+# characters than PyPI names do.
+_OTHER_NAME = re.compile(r"^[A-Za-z0-9@][A-Za-z0-9@._~/-]{0,300}$")
 _ECOSYSTEM = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:._-]{0,49}$")
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
 
@@ -155,6 +158,16 @@ def _cvss(record: Mapping[str, Any]) -> Tuple[Tuple[str, str], ...]:
     return tuple(pairs[:_MAX_ITEMS])
 
 
+_CWE = re.compile(r"^CWE-\d{1,6}$")
+
+
+def _cwes(record: Mapping[str, Any]) -> Tuple[str, ...]:
+    specific = record.get("database_specific")
+    if not isinstance(specific, dict):
+        return ()
+    return tuple(c for c in _text_tuple(specific.get("cwe_ids")) if _CWE.match(c))
+
+
 def _severity_label(record: Mapping[str, Any]) -> Optional[str]:
     specific = record.get("database_specific")
     if isinstance(specific, dict):
@@ -191,6 +204,7 @@ def parse_vulnerability(
         references=_references(record),
         published=_text(record.get("published"), 40) or None,
         modified=_text(record.get("modified"), 40) or None,
+        cwes=_cwes(record),
     )
 
 
@@ -238,12 +252,13 @@ class OsvClient:
         Raises ValueError for malformed arguments and OsvError if OSV cannot be
         reached or answers with something unusable.
         """
-        if not isinstance(name, str) or not _NAME.match(name):
+        if not isinstance(ecosystem, str) or not _ECOSYSTEM.match(ecosystem):
+            raise ValueError(f"invalid ecosystem: {ecosystem!r}")
+        pattern = _NAME if ecosystem.lower() == PYPI.lower() else _OTHER_NAME
+        if not isinstance(name, str) or not pattern.match(name):
             raise ValueError(f"invalid package name: {name!r}")
         if not isinstance(version, str) or not _VERSION.match(version):
             raise ValueError(f"invalid version: {version!r}")
-        if not isinstance(ecosystem, str) or not _ECOSYSTEM.match(ecosystem):
-            raise ValueError(f"invalid ecosystem: {ecosystem!r}")
 
         if ecosystem.lower() == PYPI.lower():
             name = normalize_name(name)

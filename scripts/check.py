@@ -82,8 +82,8 @@ def project_files() -> List[Path]:
 # ------------------------------------------------------------------- checks
 
 def check_python() -> Result:
-    if sys.version_info < (3, 9):
-        return FAIL, f"Python 3.9 or newer is required, found {sys.version.split()[0]}"
+    if sys.version_info < (3, 11):
+        return FAIL, f"Python 3.11 or newer is required, found {sys.version.split()[0]}"
     return PASS, f"Python {sys.version.split()[0]}"
 
 
@@ -129,7 +129,14 @@ def check_cli() -> Result:
         (["lookup", "--help"], 0, "package"),
         (["scan", "examples", "--offline"], 0, "Found"),
         (["scan", "examples/messy", "--offline"], 0, "could not be used"),
+        (["scan", "examples/poetry-app", "--offline"], 0, "[transitive]"),
+        (["scan", "examples/node-app", "--offline"], 0, "[npm, dev]"),
+        (["scan", "examples/rust-app", "--offline"], 0, "crates.io"),
+        (["scan", "examples/go-app", "--offline"], 0, "github.com/gin-gonic/gin"),
+        (["graph", "examples/uv-app"], 0, "  markupsafe 2.0.1"),
+        (["model"], 0, "Keyword rules"),
         (["scan", "this-folder-does-not-exist"], 2, ""),
+        (["scan", "examples", "--format", "xml"], 2, ""),
         (["lookup", "bad name", "1.0"], 2, ""),
     ]
     for args, want_code, want_text in cases:
@@ -144,7 +151,9 @@ def check_cli() -> Result:
 
 def check_required_files() -> Result:
     required = ["README.md", "LICENSE", "PROGRESS.md", "pyproject.toml", ".gitignore",
-                "src/valtrix/__init__.py", "tests/conftest.py", "scripts/check.py"]
+                "src/valtrix/__init__.py", "tests/conftest.py", "scripts/check.py",
+                "src/valtrix/risk/severity_model.json", "docs/scoring.md", "docs/severity-model.md",
+                "docs/json-report.md", "docs/ci.md", "action.yml", ".github/workflows/ci.yml"]
     missing = [f for f in required if not (ROOT / f).is_file()]
     if missing:
         return FAIL, "missing: " + ", ".join(missing)

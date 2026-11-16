@@ -26,3 +26,18 @@ def block_network(request, monkeypatch):
     monkeypatch.setattr(socket.socket, "connect_ex", blocked)
     monkeypatch.setattr(socket, "create_connection", blocked)
     monkeypatch.setattr(socket, "getaddrinfo", blocked)
+
+
+@pytest.fixture(autouse=True)
+def no_exploit_lookups(request, monkeypatch):
+    """The command line never fetches EPSS or KEV data in tests.
+
+    Tests that want exploitation evidence replace `cli.gather_exploit_data`
+    themselves; tests of the client call it directly with a fake opener.
+    """
+    if request.node.get_closest_marker("live"):
+        return
+    from valtrix import cli
+    from valtrix.databases import ExploitData
+
+    monkeypatch.setattr(cli, "gather_exploit_data", lambda cves: ExploitData())

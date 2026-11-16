@@ -1,0 +1,7 @@
+- id: valtrix
+  name: Valtrix dependency scan
+  description: Check dependencies for known vulnerabilities when a dependency file changes.
+  entry: valtrix scan .
+  language: python
+  pass_filenames: false
+  files: (^|/)(requirements[^/]*\.txt|pyproject\.toml|poetry\.lock|uv\.lock|Pipfile\.lock|package-lock\.json|npm-shrinkwrap\.json|Cargo\.lock|go\.mod|\.valtrix\.toml)$

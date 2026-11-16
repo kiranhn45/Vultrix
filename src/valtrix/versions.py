@@ -1,4 +1,6 @@
-"""Compare Python package versions (a practical subset of PEP 440).
+"""Compare package versions: PEP 440 for Python, SemVer for everything else.
+
+The Python rules are a practical subset of PEP 440.
 
 Handles epochs, release numbers, pre-releases (a, b, rc), post-releases, dev
 releases, and local suffixes. Anything that does not parse returns None, and
@@ -105,7 +107,54 @@ def parse_version(text: str) -> Optional[Version]:
     return Version(text, release, key)
 
 
-def choose_fix(installed: str, fixed_versions: Sequence[str]) -> Optional[str]:
+_SEMVER = re.compile(
+    r"""
+    ^\s*v?
+    (?P<release>\d+(?:\.\d+)*)
+    (?:-(?P<pre>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?
+    (?:\+[0-9A-Za-z.-]+)?
+    \s*$
+    """,
+    re.VERBOSE,
+)
+
+
+def parse_semver(text: str) -> Optional[Version]:
+    """Parse a SemVer version as used by npm, crates.io and Go.
+
+    A leading "v" and build metadata ("+incompatible") are ignored. A
+    pre-release ("1.0.0-rc.1") sorts before its release; numeric pre-release
+    parts sort before text ones, as the SemVer specification says.
+    """
+    if not isinstance(text, str) or len(text) > _MAX_LENGTH:
+        return None
+    match = _SEMVER.match(text)
+    if not match:
+        return None
+    release = tuple(int(part) for part in match.group("release").split("."))
+    stripped = list(release)
+    while len(stripped) > 1 and stripped[-1] == 0:
+        stripped.pop()
+
+    pre = match.group("pre")
+    if pre is None:
+        pre_key: Tuple[Any, ...] = (1,)
+    else:
+        parts = tuple(
+            (0, int(piece), "") if piece.isdigit() else (1, 0, piece) for piece in pre.split(".")
+        )
+        pre_key = (0, parts)
+    return Version(text, release, (tuple(stripped), pre_key))
+
+
+def parser_for(ecosystem: str):
+    """The version rules for an ecosystem. Unknown ecosystems use SemVer."""
+    return parse_version if ecosystem.lower() == "pypi" else parse_semver
+
+
+def choose_fix(
+    installed: str, fixed_versions: Sequence[str], ecosystem: str = "PyPI"
+) -> Optional[str]:
     """Pick the fixed version that applies to `installed`.
 
     Advisories list a fix per release line (for example 2.2.28, 3.2.13 and
@@ -117,21 +166,23 @@ def choose_fix(installed: str, fixed_versions: Sequence[str]) -> Optional[str]:
     Returns None if no fix above the installed version is listed, or if the
     versions cannot be compared.
     """
-    current = parse_version(installed)
+    parse = parser_for(ecosystem)
+    current = parse(installed)
     if current is None:
         return None
 
     candidates = []
     for text in fixed_versions:
-        version = parse_version(text)
+        version = parse(text)
         if version is not None and version > current:
             candidates.append(version)
     return min(candidates).text if candidates else None
 
 
-def sort_versions(versions: Sequence[str]) -> Tuple[str, ...]:
+def sort_versions(versions: Sequence[str], ecosystem: str = "PyPI") -> Tuple[str, ...]:
     """Sort oldest to newest. Versions that cannot be parsed go last, in order."""
-    parsed = [(parse_version(v), v) for v in versions]
+    parse = parser_for(ecosystem)
+    parsed = [(parse(v), v) for v in versions]
     good = sorted((p for p in parsed if p[0] is not None), key=lambda item: item[0])
     bad = [p for p in parsed if p[0] is None]
     return tuple(v for _, v in good + bad)

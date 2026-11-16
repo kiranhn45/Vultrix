@@ -47,3 +47,20 @@ def test_live_scan_picks_fixes_that_apply_to_the_installed_version():
     assert any(f.fix and f.fix.startswith("3.2.") for f in result.findings)
     upgrade, _ = suggest_upgrade(result.findings)
     assert upgrade is not None
+
+
+def test_live_other_ecosystems_answer():
+    client = OsvClient()
+    assert client.query("lodash", "4.17.20", "npm"), "expected known issues in lodash 4.17.20"
+    assert client.query("github.com/gin-gonic/gin", "1.7.0", "Go"), "expected known issues in gin 1.7.0"
+    assert client.query("smallvec", "1.6.0", "crates.io"), "expected known issues in smallvec 1.6.0"
+
+
+def test_live_exploit_evidence_for_log4shell():
+    from valtrix.databases import gather_exploit_data
+
+    data = gather_exploit_data(["CVE-2021-44228"])
+    assert data.kev_status == "ok" and "CVE-2021-44228" in data.kev, data.notes
+    assert data.epss_status == "ok", data.notes
+    probability, percentile = data.epss["CVE-2021-44228"]
+    assert probability > 0.5 and percentile > 0.9

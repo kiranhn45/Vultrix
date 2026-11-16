@@ -3,7 +3,8 @@
 Update this file at the end of every step. Paste it into a new chat to resume.
 
 ## Current phase
-Phase 4: the scanner. Built; waiting for the live check on the user's machine.
+Version 1.0.0: all 11 phases built. Waiting for the live check on the user's machine
+(`python scripts/check.py --live`), because the build sandbox could not reach api.osv.dev or api.first.org.
 
 ## Done
 - Phase 1: repo layout, `pyproject.toml`, `valtrix` command, README, LICENSE, `.gitignore`
@@ -36,8 +37,40 @@ Phase 4: the scanner. Built; waiting for the live check on the user's machine.
     "No known vulnerabilities" was printed when nothing was checked, and HTTP 403 did not stop the scan
     early. Both fixed and tested.
   - Mutation-checked: 14 deliberate bugs. One survivor revealed dead logic in `choose_fix`; simplified.
+- Phase 5 (reporting):
+  - `reports/terminal.py`: pure functions that return text; `cli.py` only prints
+  - `--format json` (`reports/json_report.py`, documented in `docs/json-report.md`, `schema_version` 1)
+  - `--format html` (`reports/html_report.py`): one file, no scripts, strict Content-Security-Policy,
+    every outside value escaped; tests inject markup through every field
+  - `--format sarif` (`reports/sarif.py`) for GitHub code scanning
+  - `--output FILE`; a machine-readable report on stdout is the only thing on stdout
+- Phase 6 (more ecosystems): `parsers/` now reads `pyproject.toml`, `poetry.lock`, `uv.lock`, `Pipfile.lock`,
+  `package-lock.json` (versions 1 to 3), `Cargo.lock`, `go.mod`, plus dev requirement files.
+  `parsers/discover.py` finds them all. `Dependency` gained `ecosystem`, `direct`, `dev`, `path`.
+  SemVer comparison (`versions.parse_semver`) for npm, crates.io and Go. `lookup --ecosystem`.
+- Phase 7 (dependency graph): `models/graph.py`; lock-file parsers return edges; discovery fills in the
+  shortest chain that pulls each package in and marks dev-only packages; `valtrix graph`
+- Phase 8 (risk rules): `risk/cvss.py` (CVSS 3.x base score, checked against published scores),
+  `databases/exploits.py` (EPSS and CISA KEV, optional, validated), `risk/rules.py`
+  (score 0 to 100 = severity 60 + exploitation 25 + exposure 8 + fix 7). Documented in `docs/scoring.md`.
+- Phase 9 (machine learning): `risk/severity_model.py` + `scripts/train_model.py`. Logistic regression in
+  plain Python that estimates severity for advisories that publish none. Trained on 16,751 advisories,
+  tested on the 4,188 newest: accuracy 65.7% / AUC 0.716, against 53.3% / 0.586 for the keyword-rule
+  baseline. Settings were chosen on a validation slice, not the test set. `docs/severity-model.md`.
+- Phase 10 (explainability): every score lists its four factors, their points and a sentence each, in all
+  report formats; model estimates name the words that drove them; `valtrix model` shows the test results
+- Phase 11 (developer experience and CI): `[tool.valtrix]` / `.valtrix.toml` settings (`config.py`),
+  `--fail-on`, `--ignore`, ignore rules with a required reason and optional expiry, `--no-config`,
+  GitHub Action (`action.yml`), pre-commit hook, CI workflow running the gate, `docs/ci.md`
+- Verification beyond unit tests:
+  - Full scans of every example against a stand-in OSV server built from OSV's own data exports
+    (real advisories, real CVSS vectors) for all four ecosystems
+  - One real request to the KEV catalog (1,781 entries; the cisa.gov -> mirror fallback worked), and a real
+    EPSS failure, which degraded as designed
+  - HTML report and `ui/index.html` opened in a browser, including a report file with injected markup
+  - Mutation check: 26 deliberate bugs, 25 caught at first; a test was added for the survivor
+- `ui/index.html` is now a report viewer: it opens a `--format json` report in the browser
 - Phase gate: `python scripts/check.py` (see below)
-- UI mock-up in `ui/index.html` (sample data only; roadmap still shows Phase 2, update after the live check)
 
 ## Decisions
 - Name: Valtrix (working title was VulnScan)
@@ -55,18 +88,34 @@ Phase 4: the scanner. Built; waiting for the live check on the user's machine.
 - The gate captures command output in temp files, never pipes, closes stdin, and times out every command.
   A `git status` hung the gate on the user's Windows machine (suspected cause: a background git process
   kept the output pipe open). Reproduced the pattern and added regression tests (`tests/test_check_script.py`).
-- Severity is stored as published (label and CVSS vector). Computing scores belongs to Phase 8.
-- V1 is not AI. ML arrives in Phase 9, compared against a rule-based baseline.
+- Severity is stored as published (label and CVSS vector). Scores are computed in `risk/`, never stored.
+- Python 3.11 is the minimum (3.9 and 3.10 are past end of life; `tomllib` keeps the zero-dependency rule)
+- A lock file beats a declaration: `pyproject.toml` is only a dependency source when nothing pins versions
+- The risk score is a plain sum of four factors so every point can be explained. No hidden weights.
+- Missing evidence adds no points and is stated in the report; it is never treated as "not exploited"
+- EPSS and KEV are optional: a failure there never makes the scan incomplete or changes the exit code
+- ML has one narrow job: estimate severity when none is published. It is labelled as an estimate, capped
+  below a published "high", and a test fails if the shipped model does not beat the keyword baseline.
+  The model file is JSON read as data; nothing is unpickled or executed.
+- Project settings are untrusted input: ignore rules need a reason, ignored findings stay in every report,
+  `--no-config` switches the project's settings off
+- Unknown severity always counts as reaching `--fail-on`
+- `MAL-` (malware) advisories always get the top severity
 - No automatic patching; a human reviews every fix.
 
 ## Next step
-Phase 5: reporting.
-- Move the terminal output out of `cli.py` into `reports/terminal.py` as pure functions that return text
-- `--format json`: stable, documented structure (this becomes the CI interface)
-- `--format html`: one self-contained file. Every value from OSV (summaries, ids, URLs) is untrusted and
-  must be HTML-escaped; links limited to http(s). Add tests that try to inject markup.
-- Include the version, scan time, sources, unchecked dependencies, and the incomplete flag in JSON/HTML
-- `--output FILE` to write a report
+On a machine with normal internet access:
+
+    python scripts/check.py --live
+
+This runs the live tests that could not run in the sandbox: OSV for npm, Go and crates.io, and EPSS + KEV
+for CVE-2021-44228. If one fails, the failure message says which service and why.
+
+Ideas for after 1.0 (none started):
+- An offline mode that scans against a downloaded OSV export
+- Scanning subfolders (monorepos), `yarn.lock`, `pnpm-lock.yaml`, Maven and Gradle
+- CVSS version 4 scores (needs the official lookup table)
+- Publishing to PyPI
 
 ## Phase gate
 Run after every phase, before committing:
@@ -91,3 +140,4 @@ The gate must print GATE PASSED. Then walk this checklist:
 | Phase 3: OSV vulnerability database client | 2026-10-03 | 99 passed, 2 deselected (user machine, Python 3.14) | offline + live, passed. Committed ccd219c |
 | Phase 3 fix: merge duplicate advisories | 2026-10-03 | 108 passed, 3 deselected (sandbox) | offline. Live re-check pending on user machine |
 | Phase 4: the scanner | 2026-10-04 | 182 passed, 4 deselected (sandbox) | offline. Live check pending on user machine; gate hung at the git step on first run, fixed |
+| Phases 5 to 11: reporting, ecosystems, graph, risk rules, ML, explainability, CI | 2026-11-16 | 321 passed, 6 deselected (sandbox, Python 3.13) | offline. Live check pending on user machine |
