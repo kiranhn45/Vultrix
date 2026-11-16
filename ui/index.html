@@ -325,6 +325,11 @@
     border-radius: 999px;
     color: #c5ccd8;
   }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .sr:focus-visible + .btn, label.btn:focus-within { outline: 2px solid var(--beam); }
+  .results-body .score { margin-left: auto; font-variant-numeric: tabular-nums; color: #c5ccd8; font-weight: 600; }
+  .lede code { font-size: 0.85em; color: #c5ccd8; overflow-wrap: anywhere; }
   .note { margin: 14px 0 0; font-size: 0.8125rem; color: var(--mute); }
 
   /* ---------- roadmap ---------- */
@@ -381,10 +386,10 @@
 
 <header class="hero" id="top">
   <nav class="top" aria-label="Primary">
-    <span class="chip"><i></i>Phase 3 complete</span>
+    <span class="chip"><i></i>Version 1.0: all 11 phases complete</span>
     <div class="links">
-      <a href="#scan">Scan preview</a>
-      <a href="#roadmap">Roadmap</a>
+      <a href="#scan">Scan viewer</a>
+      <a href="#roadmap">Phases</a>
     </div>
   </nav>
 
@@ -407,14 +412,14 @@
 <main>
   <section class="block" id="scan" aria-labelledby="scan-h">
     <div class="wrap">
-      <h2 id="scan-h">What a scan will look like</h2>
-      <p class="lede">Valtrix reads your dependency file, checks each package against a vulnerability database, and ranks what it finds. This preview runs on made-up packages and canned results.</p>
+      <h2 id="scan-h">What a scan looks like</h2>
+      <p class="lede">Valtrix reads your dependency file, checks each package against a vulnerability database, and ranks what it finds. Run the sample below, or open a report from your own project: <code>valtrix scan . --format json --output report.json</code>. The file is read in your browser and never uploaded.</p>
 
       <div class="console">
         <div class="panel">
           <div class="panel-head">
-            <span class="fname">requirements.txt</span>
-            <span class="tag">Sample project</span>
+            <span class="fname" id="fileName">requirements.txt</span>
+            <span class="tag" id="fileTag">Sample project</span>
           </div>
           <ul id="filelist" aria-label="Dependencies in the sample file">
             <li data-state="high" data-sev="high"><span class="ln">1</span><span>quanta-orm==3.2.0</span><span class="st"></span></li>
@@ -425,14 +430,18 @@
           </ul>
           <div class="foot">
             <div class="status" role="status" aria-live="polite"><i></i><span id="statusText">Ready to scan 5 packages</span></div>
-            <button class="btn solid" id="run" type="button">Run sample scan</button>
+            <span class="actions">
+              <label class="btn" for="reportFile">Open a report</label>
+              <input class="sr" id="reportFile" type="file" accept=".json,application/json">
+              <button class="btn solid" id="run" type="button">Run sample scan</button>
+            </span>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-head">
             <span class="fname">Findings, fix first</span>
-            <span class="tag">Illustrative output</span>
+            <span class="tag" id="resultTag">Illustrative output</span>
           </div>
           <div class="results-body" id="results">
             <div class="empty"><p>Run the sample scan to see findings ranked by what to fix first.</p></div>
@@ -444,20 +453,20 @@
 
   <section class="block" id="roadmap" aria-labelledby="road-h">
     <div class="wrap">
-      <h2 id="road-h">Where Valtrix is going</h2>
-      <p class="lede">Built in phases. Machine learning arrives in phase 9, after a rule-based baseline exists to compare it against.</p>
+      <h2 id="road-h">How Valtrix was built</h2>
+      <p class="lede">Built in phases, each one tested before the next began. Machine learning arrived in phase 9, after a rule-based baseline existed to compare it against.</p>
       <ol class="phases">
         <li class="done"><span class="n">1</span><span><span class="t">Project foundation</span><span class="s">Done</span></span></li>
         <li class="done"><span class="n">2</span><span><span class="t">Dependency discovery</span><span class="s">Done</span></span></li>
         <li class="done"><span class="n">3</span><span><span class="t">Vulnerability database</span><span class="s">Done</span></span></li>
-        <li class="next"><span class="n">4</span><span><span class="t">Vulnerability scanner</span><span class="s">Up next</span></span></li>
-        <li><span class="n">5</span><span><span class="t">Reporting</span><span class="s">Planned</span></span></li>
-        <li><span class="n">6</span><span><span class="t">More ecosystems</span><span class="s">Planned</span></span></li>
-        <li><span class="n">7</span><span><span class="t">Dependency graph</span><span class="s">Planned</span></span></li>
-        <li><span class="n">8</span><span><span class="t">Risk rules</span><span class="s">Planned</span></span></li>
-        <li><span class="n">9</span><span><span class="t">Machine learning</span><span class="s">Planned</span></span></li>
-        <li><span class="n">10</span><span><span class="t">Explainability</span><span class="s">Planned</span></span></li>
-        <li><span class="n">11</span><span><span class="t">Developer experience</span><span class="s">Planned</span></span></li>
+        <li class="done"><span class="n">4</span><span><span class="t">Vulnerability scanner</span><span class="s">Done</span></span></li>
+        <li class="done"><span class="n">5</span><span><span class="t">Reporting</span><span class="s">Done</span></span></li>
+        <li class="done"><span class="n">6</span><span><span class="t">More ecosystems</span><span class="s">Done</span></span></li>
+        <li class="done"><span class="n">7</span><span><span class="t">Dependency graph</span><span class="s">Done</span></span></li>
+        <li class="done"><span class="n">8</span><span><span class="t">Risk rules</span><span class="s">Done</span></span></li>
+        <li class="done"><span class="n">9</span><span><span class="t">Machine learning</span><span class="s">Done</span></span></li>
+        <li class="done"><span class="n">10</span><span><span class="t">Explainability</span><span class="s">Done</span></span></li>
+        <li class="done"><span class="n">11</span><span><span class="t">Developer experience</span><span class="s">Done</span></span></li>
       </ol>
     </div>
   </section>
@@ -465,8 +474,8 @@
 
 <footer>
   <div class="wrap">
-    <span>Valtrix 0.1.0</span>
-    <span>Packages and findings on this page are made up.</span>
+    <span>Valtrix 1.0.0</span>
+    <span>The sample packages and findings are made up. Reports you open stay on your computer.</span>
   </div>
 </footer>
 
@@ -585,26 +594,111 @@
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, reduce ? 0 : ms); }); }
   function say(msg, mode) { statusText.textContent = msg; statusBox.className = "status" + (mode ? " " + mode : ""); }
 
-  function render() {
-    var html = '<div class="summary">' +
-      '<span><b>3</b> of 5 packages have findings</span>' +
-      '<span class="sv"><i style="background:var(--high)"></i><b>1</b> High</span>' +
-      '<span class="sv"><i style="background:var(--med)"></i><b>1</b> Medium</span>' +
-      '<span class="sv"><i style="background:var(--low)"></i><b>1</b> Low</span></div>';
-    findings.forEach(function (f, i) {
-      html += '<article class="finding" data-sev="' + f.sev + '" style="--i:' + i + '">' +
-        '<div class="rank">' + (i + 1) + '</div><div>' +
-        '<div class="f-top"><span class="pkg">' + f.pkg + '</span><span class="ver">' + f.ver + '</span><span class="sev">' + f.label + '</span></div>' +
-        '<p class="sum">' + f.sum + '</p><p class="fix">' + f.fix + '</p>' +
-        '<p class="why-h">Why it ranks here</p><ul class="why">' +
-        f.why.map(function (x) { return "<li>" + x + "</li>"; }).join("") + '</ul></div></article>';
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
-    html += '<p class="note">Packages, versions, and findings are made up to show the layout.</p>';
+  }
+
+  /* Every value passed in may come from a report file, so all of it is escaped. */
+  function render(list, summary, note) {
+    var html = '<div class="summary">' + summary + '</div>';
+    list.forEach(function (f, i) {
+      html += '<article class="finding" data-sev="' + esc(f.sev) + '" style="--i:' + Math.min(i, 12) + '">' +
+        '<div class="rank">' + (i + 1) + '</div><div>' +
+        '<div class="f-top"><span class="pkg">' + esc(f.pkg) + '</span><span class="ver">' + esc(f.ver) + '</span><span class="sev">' + esc(f.label) + '</span>' +
+        (f.score == null ? '' : '<span class="score" title="Risk score out of 100">' + esc(f.score) + '</span>') + '</div>' +
+        '<p class="sum">' + esc(f.sum) + '</p><p class="fix">' + esc(f.fix) + '</p>' +
+        '<p class="why-h">Why it ranks here</p><ul class="why">' +
+        f.why.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + '</ul></div></article>';
+    });
+    html += '<p class="note">' + esc(note) + '</p>';
     results.innerHTML = html;
   }
 
+  function renderSample() {
+    render(findings,
+      '<span><b>3</b> of 5 packages have findings</span>' +
+      '<span class="sv"><i style="background:var(--high)"></i><b>1</b> High</span>' +
+      '<span class="sv"><i style="background:var(--med)"></i><b>1</b> Medium</span>' +
+      '<span class="sv"><i style="background:var(--low)"></i><b>1</b> Low</span>',
+      "Packages, versions, and findings are made up to show the layout.");
+  }
+
+  /* ---------- open a real report (valtrix scan --format json) ---------- */
+  var MAX_REPORT_BYTES = 20 * 1024 * 1024;
+  var MAX_SHOWN = 200;
+  var sevClass = { CRITICAL: "high", HIGH: "high", MEDIUM: "med", LOW: "low" };
+
+  function text(value, limit) { return typeof value === "string" ? value.slice(0, limit || 400) : ""; }
+
+  function showReport(report) {
+    if (!report || typeof report !== "object" || report.schema_version !== 1 || !Array.isArray(report.findings)) {
+      throw new Error("This is not a Valtrix JSON report (schema version 1).");
+    }
+    var summary = report.summary && typeof report.summary === "object" ? report.summary : {};
+    var list = report.findings.slice(0, MAX_SHOWN).map(function (f) {
+      var dep = f && f.dependency || {}, vuln = f && f.vulnerability || {}, risk = f && f.risk || {};
+      var severity = text(f && f.severity, 20) || "UNKNOWN";
+      var label = severity.charAt(0) + severity.slice(1).toLowerCase() + (f && f.severity_estimated ? " (estimated)" : "");
+      return {
+        sev: sevClass[severity] || "low", label: label,
+        pkg: text(dep.name, 120), ver: text(dep.version, 60),
+        score: typeof risk.score === "number" ? risk.score : null,
+        sum: (text(vuln.id, 80) + "  " + (text(vuln.summary) || "No description published.")).trim(),
+        fix: typeof f.fix === "string" ? "Fixed in " + text(f.fix, 60) : "No fixed version listed",
+        why: (Array.isArray(risk.factors) ? risk.factors : []).slice(0, 6).map(function (x) {
+          return "+" + (typeof x.points === "number" ? x.points : 0) + "  " + text(x.detail);
+        })
+      };
+    });
+
+    var seen = {}, rows = "";
+    list.forEach(function (f) {
+      var key = f.pkg + "@" + f.ver;
+      if (seen[key] || Object.keys(seen).length >= 14) return;
+      seen[key] = true;
+      rows += '<li data-state="' + f.sev + '" data-sev="' + f.sev + '"><span class="ln">' + Object.keys(seen).length +
+        '</span><span>' + esc(f.pkg) + '==' + esc(f.ver) + '</span><span class="st"><span class="dot" data-sev="' + f.sev + '"></span></span></li>';
+    });
+    document.getElementById("filelist").innerHTML = rows || '<li><span class="ln">1</span><span>No vulnerable packages</span><span class="st">' + CHECK + '</span></li>';
+    document.getElementById("fileName").textContent = (Array.isArray(report.sources) ? report.sources.join(", ") : "").slice(0, 80) || "report";
+    document.getElementById("fileTag").textContent = "Your report";
+    document.getElementById("resultTag").textContent = "Valtrix " + text(report.tool && report.tool.version, 20);
+
+    var by = summary.by_priority && typeof summary.by_priority === "object" ? summary.by_priority : {};
+    var head = '<span><b>' + esc(Number(summary.vulnerable) || 0) + '</b> of ' + esc(Number(summary.checked) || 0) + ' checked packages have findings</span>' +
+      '<span class="sv"><i style="background:var(--high)"></i><b>' + esc(Number(by["fix now"]) || 0) + '</b> Fix now</span>' +
+      '<span class="sv"><i style="background:var(--med)"></i><b>' + esc(Number(by["fix soon"]) || 0) + '</b> Fix soon</span>' +
+      '<span class="sv"><i style="background:var(--low)"></i><b>' + esc((Number(by.plan) || 0) + (Number(by.monitor) || 0)) + '</b> Later</span>';
+    var note = "Scanned " + text(report.target, 200) + " at " + text(report.generated_at, 40) + "." +
+      (report.findings.length > MAX_SHOWN ? " Showing the first " + MAX_SHOWN + " of " + report.findings.length + " findings." : "") +
+      (summary.incomplete ? " The scan was incomplete: some packages could not be checked." : "");
+    render(list, head, note);
+    say(list.length ? "Loaded " + report.findings.length + " findings, most urgent first." : "Loaded. No known vulnerabilities in what was checked.", "done");
+    runBtn.textContent = "Run sample scan";
+    runBtn.disabled = false;
+    runBtn.onclick = function () { window.location.reload(); };
+    loaded = true;
+  }
+
+  var loaded = false;
+  document.getElementById("reportFile").addEventListener("change", function (event) {
+    var file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (file.size > MAX_REPORT_BYTES) { say("That file is too large to be a Valtrix report.", ""); return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      try { showReport(JSON.parse(String(reader.result))); }
+      catch (err) { say(err && err.message && /Valtrix/.test(err.message) ? err.message : "That file is not valid JSON.", ""); }
+    };
+    reader.onerror = function () { say("The file could not be read.", ""); };
+    reader.readAsText(file);
+    event.target.value = "";
+  });
+
   async function run() {
-    if (running) return;
+    if (running || loaded) return;
     running = true;
     runBtn.disabled = true; runBtn.textContent = "Scanning";
     items.forEach(function (li) { li.classList.remove("active"); li.querySelector(".st").innerHTML = ""; });
@@ -622,7 +716,7 @@
         : '<span class="dot" data-sev="' + li.dataset.sev + '"></span>';
     }
     say("Ranking findings by risk", "busy"); await sleep(750);
-    render();
+    renderSample();
     say("Done. 3 of 5 packages have findings.", "done");
     runBtn.disabled = false; runBtn.textContent = "Run again";
     running = false;

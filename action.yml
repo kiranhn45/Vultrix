@@ -1,0 +1,51 @@
+name: Valtrix dependency scan
+description: Scan dependencies for known vulnerabilities and rank what to fix first.
+branding:
+  icon: shield
+  color: blue
+inputs:
+  path:
+    description: Folder to scan
+    default: "."
+  fail-on:
+    description: "Lowest severity that fails the job: none, low, medium, high or critical. Empty uses the project's settings."
+    default: ""
+  upload-sarif:
+    description: Upload results to GitHub code scanning
+    default: "true"
+  args:
+    description: Extra arguments for `valtrix scan`
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install Valtrix
+      shell: bash
+      run: python -m pip install --quiet "${{ github.action_path }}"
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        VALTRIX_PATH: ${{ inputs.path }}
+        VALTRIX_FAIL_ON: ${{ inputs.fail-on }}
+        VALTRIX_ARGS: ${{ inputs.args }}
+      run: |
+        set +e
+        level=()
+        if [ -n "$VALTRIX_FAIL_ON" ]; then level=(--fail-on "$VALTRIX_FAIL_ON"); fi
+        # shellcheck disable=SC2086
+        valtrix scan "$VALTRIX_PATH" --format sarif --output "$RUNNER_TEMP/valtrix.sarif" "${level[@]}" $VALTRIX_ARGS
+        echo "code=$?" >> "$GITHUB_OUTPUT"
+    - name: Upload to code scanning
+      if: ${{ inputs.upload-sarif == 'true' && hashFiles(format('{0}/valtrix.sarif', runner.temp)) != '' }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ runner.temp }}/valtrix.sarif
+        category: valtrix
+      continue-on-error: true
+    - name: Result
+      shell: bash
+      run: exit ${{ steps.scan.outputs.code }}
