@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "valtrix"
-version = "0.1.0"
+version = "1.0.0"
 description = "Scan a project's dependencies for known vulnerabilities and prioritize what to fix first."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = []
 
@@ -19,6 +19,9 @@ valtrix = "valtrix.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+valtrix = ["risk/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

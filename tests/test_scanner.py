@@ -220,3 +220,20 @@ def test_upgrade_suggestion_for_real_django_shaped_data():
     findings = scan_dependencies([dep("django", "3.2.0")], client).findings
     assert sorted(f.fix for f in findings) == ["3.2.13", "3.2.25", "4.2.24", "5.2.16"]
     assert suggest_upgrade(findings) == ("5.2.16", 0)
+
+
+# ------------------------------------------------------------ other ecosystems
+
+def test_other_ecosystems_are_queried_and_compared_with_their_own_rules():
+    class EcosystemClient(FakeClient):
+        def query(self, name, version, ecosystem="PyPI"):
+            self.calls.append((ecosystem, name, version))
+            return self.table.get((name, version), [])
+
+    npm = Dependency("left-pad", "2.0.0-next.1", "==2.0.0-next.1", (), None, "package-lock.json", 5, "npm")
+    client = EcosystemClient({("left-pad", "2.0.0-next.1"): [vuln("GHSA-n", "HIGH", ["2.0.0", "1.9.9"])]})
+    result = scan_dependencies([npm, dep("left-pad", "1.0")], client)
+    assert client.calls == [("npm", "left-pad", "2.0.0-next.1"), ("PyPI", "left-pad", "1.0")]   # same name, two registries
+    # "2.0.0-next.1" only makes sense under npm's version rules.
+    assert result.findings[0].fix == "2.0.0"
+    assert suggest_upgrade(result.findings) == ("2.0.0", 0)

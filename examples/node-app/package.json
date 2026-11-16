@@ -1,0 +1,12 @@
+{
+  "name": "node-app",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "express": "4.17.1",
+    "lodash": "4.17.20"
+  },
+  "devDependencies": {
+    "minimist": "1.2.5"
+  }
+}

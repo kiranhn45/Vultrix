@@ -13,13 +13,14 @@ from pathlib import Path
 from typing import Callable, Iterator, List, Optional, Set, Tuple, Union
 
 from valtrix.models import Dependency, ParseIssue, ParseResult, normalize_name
+from valtrix.parsers.common import ParseError
 
 MAX_FILE_BYTES = 1_000_000
 MAX_INCLUDE_DEPTH = 10
 _SHORTEN_AT = 80
 
 
-class RequirementsError(Exception):
+class RequirementsError(ParseError):
     """A requirements file could not be read."""
 
 

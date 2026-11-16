@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "poetry-app"
+version = "0.1.0"
+description = "Example: a Poetry project with a lock file"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^2.0"
+requests = "^2.25"
+
+[tool.poetry.group.dev.dependencies]
+pyyaml = "^5.3"
+
+[tool.valtrix]
+fail-on = "high"
+
+[[tool.valtrix.ignore]]
+id = "GHSA-9wx4-h78v-vm56"
+reason = "Example: we never call requests with verify=False"
+expires = "2099-01-01"

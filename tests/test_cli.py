@@ -75,7 +75,7 @@ def test_scan_file_instead_of_directory(tmp_path, capsys):
 def test_offline_directory_without_requirements(tmp_path, capsys):
     assert main(["scan", str(tmp_path), "--offline"]) == EXIT_OK
     out = capsys.readouterr().out
-    assert "Target:" in out and "No requirements.txt found" in out
+    assert "Target:" in out and "No dependency files found" in out
 
 
 def test_offline_lists_dependencies_without_touching_osv(tmp_path, capsys, fake_osv):
@@ -111,7 +111,8 @@ def test_scan_reports_findings_and_exits_1(tmp_path, capsys, fake_osv):
     assert "1 issue with no known fix" in out
     assert "1 dependency with no known vulnerabilities" in out
     assert "Run with --details" in out
-    assert "GHSA-aaaa" not in out          # summary only by default
+    assert "Fix first (3 issues, ranked by risk)" in out
+    assert "[CRITICAL] GHSA-aaaa" not in out   # the per-dependency issue list needs --details
 
 
 def test_scan_details_lists_every_issue(tmp_path, capsys, fake_osv):
@@ -198,7 +199,7 @@ def test_scan_reports_unusable_lines(tmp_path, capsys, fake_osv):
 
 def test_scan_directory_without_requirements(tmp_path, capsys, fake_osv):
     assert main(["scan", str(tmp_path)]) == EXIT_OK
-    assert "No requirements.txt found" in capsys.readouterr().out
+    assert "No dependency files found" in capsys.readouterr().out
     assert fake_osv.calls == []
 
 

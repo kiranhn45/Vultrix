@@ -12,15 +12,15 @@ from typing import Callable, List, Optional, Sequence, Set, Tuple, Union
 
 from valtrix.databases import OsvClient, OsvError
 from valtrix.models import (
+    PYPI,
     Dependency,
     Finding,
-    ParseIssue,
     ScanResult,
     Unchecked,
     severity_rank,
 )
-from valtrix.parsers import parse_requirements
-from valtrix.versions import choose_fix, parse_version
+from valtrix.parsers import discover
+from valtrix.versions import choose_fix, parser_for
 
 # Stop after this many packages in a row fail because OSV is unreachable.
 MAX_CONSECUTIVE_UNREACHABLE = 3
@@ -37,9 +37,9 @@ def scan_dependencies(
     result = ScanResult()
 
     to_check: List[Dependency] = []
-    seen: Set[Tuple[str, Optional[str], str]] = set()
+    seen: Set[Tuple[str, str, Optional[str], str]] = set()
     for dep in dependencies:
-        key = (dep.name, dep.version, dep.specifier)
+        key = (dep.ecosystem, dep.name, dep.version, dep.specifier)
         if key in seen:
             continue
         seen.add(key)
@@ -61,7 +61,10 @@ def scan_dependencies(
         if progress is not None:
             progress(index, len(to_check), dep)
         try:
-            vulns = client.query(dep.name, dep.version or "")
+            if dep.ecosystem == PYPI:
+                vulns = client.query(dep.name, dep.version or "")
+            else:
+                vulns = client.query(dep.name, dep.version or "", dep.ecosystem)
         except OsvError as exc:
             in_a_row = in_a_row + 1 if exc.unreachable else 0
             result.unchecked.append(Unchecked(dep, f"lookup failed: {exc}", failed=True))
@@ -74,7 +77,7 @@ def scan_dependencies(
         in_a_row = 0
         result.scanned.append(dep)
         for vuln in vulns:
-            result.findings.append(Finding(dep, vuln, choose_fix(dep.version or "", vuln.fixed_versions)))
+            result.findings.append(Finding(dep, vuln, choose_fix(dep.version or "", vuln.fixed_versions, dep.ecosystem)))
 
     result.findings.sort(
         key=lambda f: (
@@ -91,20 +94,17 @@ def scan_project(
     client: OsvClient,
     progress: Optional[Progress] = None,
 ) -> ScanResult:
-    """Scan a project folder. Currently reads requirements.txt only.
+    """Scan a project folder: every supported dependency file in it.
 
-    Raises RequirementsError if requirements.txt exists but cannot be read.
-    If there is no requirements.txt, the result has no sources.
+    Raises ParseError (RequirementsError for requirements.txt) if a file
+    exists but cannot be read. If the folder has no dependency files, the
+    result has no sources.
     """
-    folder = Path(root).resolve()
-    requirements = folder / "requirements.txt"
-    if not requirements.is_file():
-        return ScanResult()
-
-    parsed = parse_requirements(requirements, root=folder)
-    result = scan_dependencies(parsed.dependencies, client, progress)
-    result.sources = sorted({d.source for d in parsed.dependencies} | {"requirements.txt"})
-    result.parse_issues = list(parsed.issues)
+    project = discover(root)
+    result = scan_dependencies(project.dependencies, client, progress)
+    result.sources = list(project.sources)
+    result.parse_issues = list(project.issues)
+    result.graph = project.graph
     return result
 
 
@@ -117,9 +117,10 @@ def suggest_upgrade(findings: Sequence[Finding]) -> Tuple[Optional[str], int]:
     """
     fixes = [f.fix for f in findings if f.fix]
     unfixed = sum(1 for f in findings if not f.fix)
+    parse = parser_for(findings[0].dependency.ecosystem) if findings else parser_for(PYPI)
     best: Optional[str] = None
     for text in fixes:
-        parsed = parse_version(text)
-        if parsed is not None and (best is None or parsed > parse_version(best)):  # type: ignore[arg-type]
+        parsed = parse(text)
+        if parsed is not None and (best is None or parsed > parse(best)):  # type: ignore[operator]
             best = text
     return best, unfixed

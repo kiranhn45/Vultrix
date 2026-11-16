@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from valtrix.models.dependency import Dependency
+from valtrix.models.graph import DependencyGraph
 from valtrix.models.parse_result import ParseIssue
 from valtrix.models.vulnerability import Vulnerability
 
@@ -17,18 +18,58 @@ def severity_rank(label: Optional[str]) -> int:
     return SEVERITY_ORDER.index(label) if label in SEVERITY_ORDER else len(SEVERITY_ORDER)
 
 
+PRIORITIES = ("fix now", "fix soon", "plan", "monitor")
+
+
+@dataclass(frozen=True)
+class Factor:
+    """One reason a finding scored what it did.
+
+    name    "Severity", "Exploitation", "Exposure" or "Fix".
+    points  What this factor added to the score.
+    detail  A sentence a person can read.
+    """
+
+    name: str
+    points: int
+    detail: str
+
+
+@dataclass(frozen=True)
+class Risk:
+    """How urgently a finding should be fixed, and why.
+
+    score       0 to 100. The sum of the factor points.
+    priority    One of PRIORITIES.
+    factors     Every factor that went into the score, in a fixed order.
+    severity    The label used for scoring: the published one, or the
+                estimate when none is published, or "UNKNOWN".
+    estimated   True if `severity` is an estimate, not a published value.
+    cvss_score  CVSS base score computed from the published vector, if any.
+    """
+
+    score: int
+    priority: str
+    factors: Tuple[Factor, ...] = ()
+    severity: str = "UNKNOWN"
+    estimated: bool = False
+    cvss_score: Optional[float] = None
+
+
 @dataclass(frozen=True)
 class Finding:
     """One vulnerability affecting one dependency.
 
-    fix  The fixed version that applies to the installed version, or None if
-         no usable fix is listed. The vulnerability itself keeps every fixed
-         version the database mentions.
+    fix   The fixed version that applies to the installed version, or None if
+          no usable fix is listed. The vulnerability itself keeps every fixed
+          version the database mentions.
+    risk  Filled in by valtrix.risk.prioritize(); None before that.
     """
 
     dependency: Dependency
     vulnerability: Vulnerability
     fix: Optional[str] = None
+    risk: Optional[Risk] = None
 
 
 @dataclass(frozen=True)
@@ -43,6 +84,15 @@ class Unchecked:
     dependency: Dependency
     reason: str
     failed: bool = False
+
+
+@dataclass(frozen=True)
+class Ignored:
+    """A finding the project chose to accept, with the reason on record."""
+
+    finding: Finding
+    reason: str
+    expires: Optional[str] = None
 
 
 def count_by_severity(findings: Sequence[Finding]) -> Dict[str, int]:
@@ -61,6 +111,9 @@ class ScanResult:
     findings: List[Finding] = field(default_factory=list)
     unchecked: List[Unchecked] = field(default_factory=list)
     parse_issues: List[ParseIssue] = field(default_factory=list)
+    ignored: List["Ignored"] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
+    graph: DependencyGraph = field(default_factory=DependencyGraph)
 
     @property
     def incomplete(self) -> bool:
